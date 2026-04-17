@@ -94,15 +94,22 @@ The SQLite database schema is defined in `trees.ddl`. This file contains all tab
 
 Run tests with:
 ```bash
-# Run all tests
-deno task test
+# Run all tests (requires MongoDB)
+./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database"
 
-# Run with coverage
+# Run tests using environment variable
+MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" ./test/run_tests.sh
+
+# Run only SQLite tests (skip MongoDB connectivity check)
+./test/run_tests.sh --only-mongo
+
+# Run specific test filter
+./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database" --filter "MIGRATION"
+
+# Show help
+./test/run_tests.sh --help
+
+# Run with coverage (using Deno directly)
 deno task test:coverage
 deno task coverage:report
-
-# Run with MongoDB checks disabled
-SKIP_MONGO_TESTS=true deno task test
 ```
-
-Set `MONGO_TEST_URI` to override the test MongoDB connection (default: `mongodb://192.168.0.8:27017/test_my_database`).

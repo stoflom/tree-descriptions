@@ -2,9 +2,9 @@
   "tasks": {
     "start": "deno run --allow-all update_descriptions.ts",
     "dev": "deno run --allow-all --watch update_descriptions.ts",
-    "test": "deno test --allow-all test/test_harness.ts",
+    "test": "./test/run_tests.sh --mongo-uri \"mongodb://192.168.0.8:27017/test_my_database\"",
     "test:watch": "deno test --allow-all --watch test/test_harness.ts",
-    "test:coverage": "deno test --allow-all --coverage=coverage test/test_harness.ts",
+    "test:coverage": "MONGO_TEST_URI=\"mongodb://192.168.0.8:27017/test_my_database\" deno test --allow-all --coverage=coverage test/test_harness.ts",
     "coverage:report": "deno coverage --uncovered coverage/coverage --html"
   },
   "nodeModulesDir": "auto",

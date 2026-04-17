@@ -19,17 +19,39 @@ docker run -d -p 27017:27017 --name test-mongo mongo:latest
 ### Environment Variables (Optional)
 
 ```bash
-export MONGO_TEST_URI="mongodb://127.0.0.1:27017/test_my_database"
+export MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database"
 ```
 
-Default: `mongodb://127.0.0.1:27017/test_my_database`
+Default: `mongodb://192.168.0.8:27017/test_my_database` (when using `--mongo-uri` flag or `MONGO_TEST_URI` env var)
 
 ## Running Tests
 
-### Run All Tests
+### Using the Test Runner Script
+
+The easiest way to run tests is using the provided shell script:
 
 ```bash
-deno test --allow-all test/test_harness.ts
+# Run all tests with a specific MongoDB URI
+./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database"
+
+# Run tests with default MongoDB URI (from MONGO_TEST_URI env var)
+./test/run_tests.sh
+
+# Run only SQLite tests (skip MongoDB connectivity check)
+./test/run_tests.sh --only-mongo
+
+# Run specific test filter
+./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database" --filter "MIGRATION"
+
+# Show help
+./test/run_tests.sh --help
+```
+
+### Using Deno Directly
+
+```bash
+# Run all tests (set MONGO_TEST_URI environment variable)
+MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" deno test --allow-all test/test_harness.ts
 ```
 
 ### Run with Coverage
