@@ -92,14 +92,17 @@ The SQLite database schema is defined in `trees.ddl`. This file contains all tab
 
 ## Testing
 
-Test scripts available:
-- `test_deno_sqlite.ts` - Tests SQLite functionality
-- `test_mongo.ts` - Tests MongoDB connection
-- `populate_mongo.ts` - Populates MongoDB with test data
-
 Run tests with:
 ```bash
-deno run test_deno_sqlite.ts
-deno run test_mongo.ts
-deno run populate_mongo.ts
+# Run all tests
+deno task test
+
+# Run with coverage
+deno task test:coverage
+deno task coverage:report
+
+# Run with MongoDB checks disabled
+SKIP_MONGO_TESTS=true deno task test
 ```
+
+Set `MONGO_TEST_URI` to override the test MongoDB connection (default: `mongodb://192.168.0.8:27017/test_my_database`).

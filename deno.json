@@ -1,7 +1,17 @@
 {
   "tasks": {
     "start": "deno run --allow-all update_descriptions.ts",
-    "dev": "deno run --allow-all --watch update_descriptions.ts"
+    "dev": "deno run --allow-all --watch update_descriptions.ts",
+    "test": "deno test --allow-all test/test_harness.ts",
+    "test:watch": "deno test --allow-all --watch test/test_harness.ts",
+    "test:coverage": "deno test --allow-all --coverage=coverage test/test_harness.ts",
+    "coverage:report": "deno coverage --uncovered coverage/coverage --html"
   },
-  "nodeModulesDir": "auto"
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@std/assert": "https://deno.land/std@0.224.0/assert/mod.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
 }
