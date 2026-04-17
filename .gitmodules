@@ -1,0 +1,3 @@
+[submodule "tree-descriptions"]
+	path = tree-descriptions
+	url = git@github.com:stoflom/tree-descriptions.git
