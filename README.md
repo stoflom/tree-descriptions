@@ -29,6 +29,40 @@ deno task dev
 deno task start
 ```
 
+## How trees are matched
+
+Trees are matched between SQLite and MongoDB using the **`scientificname`** field:
+
+1. **Read from SQLite**: Fetches all rows from `trees_table` where `synced != 1`, retrieving `treename` and `treedescription`
+
+2. **Query MongoDB**: Performs a single `$in` query on MongoDB's `scientificname` field to fetch all trees that match the SQLite `treename` values:
+   ```javascript
+   { scientificname: { $in: ["treename1", "treename2", ...] } }
+   ```
+
+3. **Build match map**: Groups MongoDB results by `scientificname` to detect duplicates
+
+4. **Match validation**:
+   - **Missing**: If a `treename` from SQLite has no matching `scientificname` in MongoDB → reported as missing
+   - **Duplicate**: If a `treename` matches multiple documents in MongoDB (multiple `scientificname` values) → skipped to prevent data corruption
+   - **Valid match**: If exactly one MongoDB document matches → the `treedescription` is updated
+
+5. **Bulk update**: Updates the `treedescription` field in MongoDB using bulk write operations
+
+6. **Mark as synced**: Sets `synced = 1` in SQLite for successfully updated trees
+
+## Matching logic flow
+
+```
+SQLite (treename)    MongoDB (scientificname)
+─────────────────    ───────────────────────
+tree1        ──────→  tree1 (match, update)
+tree2        ──────→  [no match] (missing)
+tree3        ──────→  tree3a
+                   →  tree3b (duplicate, skipped)
+tree4        ──────→  tree4 (already has description)
+```
+
 ## How it works
 
 1. Reads rows from SQLite where `synced != 1`
