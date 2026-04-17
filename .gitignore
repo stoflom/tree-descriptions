@@ -1,3 +1,4 @@
 # node_modules folder for deno build artifacts
 node_modules
 dist/
+coverage/
