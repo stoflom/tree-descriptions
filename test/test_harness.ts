@@ -7,6 +7,7 @@ const TEST_SQLITE_PATH = "./test_trees.db";
 const TEST_MONGO_URI = Deno.env.get("MONGO_TEST_URI") || "mongodb://192.168.0.8:27017/test_my_database";
 const TEST_DB_NAME = "test_my_database";
 const TEST_COLLECTION_NAME = "treecols";
+const UPDATE_SCRIPT_PATH = "./update_descriptions.ts";
 
 // ============== Configuration ==============
 const SKIP_MONGO_TESTS = Deno.env.get("SKIP_MONGO_TESTS") === "true";
@@ -203,6 +204,36 @@ class TestMongoDB {
   }
 }
 
+async function runUpdateScript(
+  sqlitePath: string,
+  mongoUri: string,
+  dbName: string,
+  collectionName: string
+): Promise<{ success: boolean; output: string; exitCode: number }> {
+  const command = new Deno.Command(Deno.execPath(), {
+    args: ["run", "--allow-all", UPDATE_SCRIPT_PATH],
+    env: {
+      "SQLITE_PATH": sqlitePath,
+      "MONGO_URI": mongoUri,
+      "DB_NAME": dbName,
+      "COLLECTION_NAME": collectionName,
+    },
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  const { code, stdout, stderr } = await command.output();
+
+  const output = new TextDecoder().decode(stdout);
+  const errorOutput = new TextDecoder().decode(stderr);
+
+  return {
+    success: code === 0,
+    output: output + (errorOutput ? "\n" + errorOutput : ""),
+    exitCode: code,
+  };
+}
+
 // ============== Test Suites ==============
 
 Deno.test("[DATABASE SETUP] Create SQLite database", async () => {
@@ -242,14 +273,14 @@ Deno.test("[DATABASE SETUP] Insert synced trees into SQLite", async () => {
   db.cleanup();
 });
 
-Deno.test("[DATABASE SETUP] Connect to MongoDB", async () => {
+Deno.test({ name: "[DATABASE SETUP] Connect to MongoDB", ignore: SKIP_MONGO_TESTS }, async () => {
   const mongo = new TestMongoDB();
   await mongo.connect();
   assert(true, "MongoDB connection successful");
   await mongo.cleanup();
 });
 
-Deno.test("[DATABASE SETUP] Insert trees into MongoDB", async () => {
+Deno.test({ name: "[DATABASE SETUP] Insert trees into MongoDB", ignore: SKIP_MONGO_TESTS }, async () => {
   const mongo = new TestMongoDB();
   await mongo.connect();
   
@@ -262,7 +293,7 @@ Deno.test("[DATABASE SETUP] Insert trees into MongoDB", async () => {
   await mongo.cleanup();
 });
 
-Deno.test("[MIGRATION] Basic migration from SQLite to MongoDB", async () => {
+Deno.test({ name: "[MIGRATION] Basic migration from SQLite to MongoDB", ignore: SKIP_MONGO_TESTS }, async () => {
   const db = new TestDatabase(TEST_SQLITE_PATH);
   const mongo = new TestMongoDB();
   
@@ -305,7 +336,7 @@ Deno.test("[MIGRATION] Basic migration from SQLite to MongoDB", async () => {
   await mongo.cleanup();
 });
 
-Deno.test("[MIGRATION] Skip already synced trees", async () => {
+Deno.test({ name: "[MIGRATION] Skip already synced trees", ignore: SKIP_MONGO_TESTS }, async () => {
   const db = new TestDatabase(TEST_SQLITE_PATH);
   const mongo = new TestMongoDB();
   
@@ -323,7 +354,7 @@ Deno.test("[MIGRATION] Skip already synced trees", async () => {
   await mongo.cleanup();
 });
 
-Deno.test("[MIGRATION] Handle missing trees in MongoDB", async () => {
+Deno.test({ name: "[MIGRATION] Handle missing trees in MongoDB", ignore: SKIP_MONGO_TESTS }, async () => {
   const db = new TestDatabase(TEST_SQLITE_PATH);
   const mongo = new TestMongoDB();
   
@@ -347,7 +378,7 @@ Deno.test("[MIGRATION] Handle missing trees in MongoDB", async () => {
   await mongo.cleanup();
 });
 
-Deno.test("[MIGRATION] Handle duplicate trees in MongoDB", async () => {
+Deno.test({ name: "[MIGRATION] Handle duplicate trees in MongoDB", ignore: SKIP_MONGO_TESTS }, async () => {
   const db = new TestDatabase(TEST_SQLITE_PATH);
   const mongo = new TestMongoDB();
   
@@ -452,7 +483,7 @@ Deno.test("[EDGE CASE] Null/empty descriptions", async () => {
   db.cleanup();
 });
 
-Deno.test("[INTEGRATION] Full migration workflow with all scenarios", async () => {
+Deno.test({ name: "[INTEGRATION] Full migration workflow with all scenarios", ignore: SKIP_MONGO_TESTS }, async () => {
   const db = new TestDatabase(TEST_SQLITE_PATH);
   const mongo = new TestMongoDB();
   
@@ -524,7 +555,7 @@ Deno.test("[INTEGRATION] Full migration workflow with all scenarios", async () =
   await mongo.cleanup();
 });
 
-Deno.test("[INTEGRATION] Statistics tracking", async () => {
+Deno.test({ name: "[INTEGRATION] Statistics tracking", ignore: SKIP_MONGO_TESTS }, async () => {
   const db = new TestDatabase(TEST_SQLITE_PATH);
   const mongo = new TestMongoDB();
   
@@ -639,3 +670,275 @@ Deno.test({ name: "[CLEANUP] MongoDB cleanup", ignore: true }, async () => {
 // Export for use as a module
 export { TestDatabase, TestMongoDB, generateTestTrees, generateMongoTrees };
 export type { TreeRow, MongoTree };
+
+// ============== Script Execution Tests ==============
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts on empty database", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+  assert(result.output.includes("No trees to migrate"), "Expected 'No trees to migrate' message");
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts with trees to migrate", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const sqliteTrees = generateTestTrees(5);
+  db.insertTrees(sqliteTrees);
+  await mongo.insertTrees(generateMongoTrees(sqliteTrees));
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+  assert(result.output.includes("[Success]"), "Expected success message");
+
+  const syncedAfter = db.getSyncedTreeCount();
+  assertStrictEquals(syncedAfter, 5, `Expected 5 synced trees, got ${syncedAfter}`);
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts skips already synced trees", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const sqliteTrees = generateTestTrees(3);
+  db.insertSyncedTrees(sqliteTrees);
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+
+  const syncedAfter = db.getSyncedTreeCount();
+  assertStrictEquals(syncedAfter, 3, "Expected 3 synced trees (unchanged)");
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts handles missing MongoDB entries", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const sqliteTrees = generateTestTrees(10);
+  db.insertTrees(sqliteTrees);
+  await mongo.insertTrees(generateMissingTrees(sqliteTrees));
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+  assert(result.output.includes("[Missing]"), "Expected missing entries message");
+
+  const syncedAfter = db.getSyncedTreeCount();
+  const expectedSynced = Math.ceil(10 / 2);
+  assertStrictEquals(syncedAfter, expectedSynced, `Expected ${expectedSynced} synced trees`);
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts handles duplicate MongoDB entries", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const sqliteTrees = generateTestTrees(5);
+  db.insertTrees(sqliteTrees);
+  await mongo.insertTrees(generateDuplicateTrees(sqliteTrees));
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+  assert(result.output.includes("[Duplicate]"), "Expected duplicate entries message");
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts updates MongoDB with correct descriptions", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const sqliteTrees = generateTestTrees(3);
+  db.insertTrees(sqliteTrees);
+  await mongo.insertTrees(generateMongoTrees(sqliteTrees));
+
+  await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  for (const tree of sqliteTrees) {
+    const mongoDoc = await mongo.findOneTree({ scientificname: tree.treename });
+    assert(mongoDoc, `Tree ${tree.treename} not found in MongoDB`);
+    assertStrictEquals(
+      mongoDoc.treedescription,
+      tree.treedescription,
+      `Description mismatch for ${tree.treename}`
+    );
+  }
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts handles unicode characters", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const unicodeTrees: TreeRow[] = [
+    { treename: "Quercus_αβγ", treedescription: "希腊字母描述", synced: 0 },
+    { treename: "Pinus_中文", treedescription: "中文描述", synced: 0 },
+    { treename: "Acer_🌲", treedescription: "Emoji test 🌳", synced: 0 },
+  ];
+  db.insertTrees(unicodeTrees);
+
+  const mongoTrees = unicodeTrees.map((tree, index) => ({
+    scientificname: tree.treename,
+    treedescription: `Initial ${index}`,
+  }));
+  await mongo.insertTrees(mongoTrees);
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+
+  const syncedAfter = db.getSyncedTreeCount();
+  assertStrictEquals(syncedAfter, 3, "Expected 3 synced unicode trees");
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts with mixed scenario (sync, skip, missing)", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const allTrees = generateTestTrees(15);
+  const toSync = allTrees.slice(0, 5);
+  const alreadySynced = allTrees.slice(5, 8);
+  const missingInMongo = allTrees.slice(8, 15);
+
+  db.insertTrees(toSync);
+  db.insertSyncedTrees(alreadySynced);
+  db.insertTrees(missingInMongo);
+
+  await mongo.insertTrees(generateMongoTrees(toSync));
+
+  const result = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+
+  assert(result.success, `Script failed: ${result.output}`);
+  assert(result.output.includes("[Missing]"), "Expected missing entries message");
+
+  const syncedAfter = db.getSyncedTreeCount();
+  const expectedSynced = 8 + 5;
+  assertStrictEquals(syncedAfter, expectedSynced, `Expected ${expectedSynced} synced trees`);
+
+  db.cleanup();
+  await mongo.cleanup();
+});
+
+Deno.test({ name: "[SCRIPT] Run update_descriptions.ts twice is idempotent", ignore: SKIP_MONGO_TESTS }, async () => {
+  const db = new TestDatabase(TEST_SQLITE_PATH);
+  const mongo = new TestMongoDB();
+
+  await mongo.connect();
+  db.setup();
+
+  const sqliteTrees = generateTestTrees(5);
+  db.insertTrees(sqliteTrees);
+  await mongo.insertTrees(generateMongoTrees(sqliteTrees));
+
+  const result1 = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+  assert(result1.success, `First run failed: ${result1.output}`);
+
+  const syncedAfterFirst = db.getSyncedTreeCount();
+  assertStrictEquals(syncedAfterFirst, 5, "Expected 5 synced after first run");
+
+  const result2 = await runUpdateScript(
+    TEST_SQLITE_PATH,
+    TEST_MONGO_URI,
+    TEST_DB_NAME,
+    TEST_COLLECTION_NAME
+  );
+  assert(result2.success, `Second run failed: ${result2.output}`);
+
+  const syncedAfterSecond = db.getSyncedTreeCount();
+  assertStrictEquals(syncedAfterSecond, 5, "Expected 5 synced after second run (no changes)");
+
+  db.cleanup();
+  await mongo.cleanup();
+});

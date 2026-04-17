@@ -6,7 +6,7 @@ Complete test harness for SQLite and MongoDB synchronization.
 
 ### MongoDB Setup
 
-Before running tests, ensure MongoDB is running:
+Before running full tests, ensure MongoDB is running:
 
 ```bash
 # Start MongoDB locally
@@ -15,6 +15,8 @@ mongod --dbpath /data/db --port 27017
 # Or use Docker
 docker run -d -p 27017:27017 --name test-mongo mongo:latest
 ```
+
+**Note:** SQLite-only tests can run without MongoDB using `--sqlite-only` flag.
 
 ### Environment Variables (Optional)
 
@@ -37,8 +39,8 @@ The easiest way to run tests is using the provided shell script:
 # Run tests with default MongoDB URI (from MONGO_TEST_URI env var)
 ./test/run_tests.sh
 
-# Run only SQLite tests (skip MongoDB connectivity check)
-./test/run_tests.sh --only-mongo
+# Run SQLite-only tests (no MongoDB required)
+./test/run_tests.sh --sqlite-only
 
 # Run specific test filter
 ./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database" --filter "MIGRATION"
@@ -52,6 +54,9 @@ The easiest way to run tests is using the provided shell script:
 ```bash
 # Run all tests (set MONGO_TEST_URI environment variable)
 MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" deno test --allow-all test/test_harness.ts
+
+# Run SQLite-only tests
+SKIP_MONGO_TESTS="true" deno test --allow-all test/test_harness.ts
 ```
 
 ### Run with Coverage
@@ -76,6 +81,9 @@ deno test --allow-all test/test_harness.ts --filter "MIGRATION"
 
 # Run only integration tests
 deno test --allow-all test/test_harness.ts --filter "INTEGRATION"
+
+# Run only script execution tests
+deno test --allow-all test/test_harness.ts --filter "SCRIPT"
 ```
 
 ## Test Suites
@@ -103,6 +111,17 @@ deno test --allow-all test/test_harness.ts --filter "INTEGRATION"
 ### Integration Tests
 - Full migration workflow with all scenarios
 - Statistics tracking
+
+### Script Execution Tests
+- Run update_descriptions.ts on empty database
+- Run update_descriptions.ts with trees to migrate
+- Run update_descriptions.ts skips already synced trees
+- Run update_descriptions.ts handles missing MongoDB entries
+- Run update_descriptions.ts handles duplicate MongoDB entries
+- Run update_descriptions.ts updates MongoDB with correct descriptions
+- Run update_descriptions.ts handles unicode characters
+- Run update_descriptions.ts with mixed scenario
+- Run update_descriptions.ts twice is idempotent
 
 ### Cleanup Tests
 - SQLite database cleanup
@@ -143,38 +162,51 @@ mongo.insertTrees(mongoTrees);
 await mongo.cleanup();
 ```
 
+### Script Execution Helper
+
+The test harness includes a `runUpdateScript()` function that spawns the actual `update_descriptions.ts` script with test environment variables:
+
+```typescript
+const result = await runUpdateScript(
+  sqlitePath,        // Test SQLite database path
+  mongoUri,          // MongoDB connection URI
+  dbName,            // MongoDB database name
+  collectionName     // MongoDB collection name
+);
+
+console.log(result.success);    // true if exit code was 0
+console.log(result.output);    // stdout + stderr
+console.log(result.exitCode);  // exit code
+```
+
+This allows tests to verify the actual script behavior, not just the TypeScript logic.
+
 ## Test Results
 
 The test runner outputs:
 
 ```
-============================================================
-                    TEST RUNNER
-============================================================
+========================================
+   SQLite/MongoDB Test Runner
+========================================
 
-[DATABASE SETUP TESTS]
-  ✓ Setup: Create SQLite database
-  ✓ Setup: Insert trees into SQLite
-  ✓ Setup: Insert synced trees into SQLite
-  ✓ Setup: Connect to MongoDB
-  ✓ Setup: Insert trees into MongoDB
+Running tests...
 
-[MIGRATION TESTS]
-  ✓ Migration: Basic migration from SQLite to MongoDB
-  ✓ Migration: Skip already synced trees
-  ✓ Migration: Handle missing trees in MongoDB
-  ✓ Migration: Handle duplicate trees in MongoDB
-
+Check test/test_harness.ts
+running 27 tests from ./test/test_harness.ts
+[DATABASE SETUP] Create SQLite database ... ok
+[DATABASE SETUP] Insert trees into SQLite ... ok
+[DATABASE SETUP] Insert synced trees into SQLite ... ok
+[DATABASE SETUP] Connect to MongoDB ... ignored
+[DATABASE SETUP] Insert trees into MongoDB ... ignored
+[MIGRATION] Basic migration from SQLite to MongoDB ... ignored
+...
+[SCRIPT] Run update_descriptions.ts with trees to migrate ... ok
+[SCRIPT] Run update_descriptions.ts skips already synced trees ... ok
 ...
 
-============================================================
-                   TEST SUMMARY
-============================================================
-Total Tests:  22
-Passed:       22 ✓
-Failed:       0 ✗
-Duration:     1234ms
-============================================================
+ok | 9 passed | 0 failed | 18 ignored
+All tests passed!
 ```
 
 ## CI/CD Integration
@@ -182,6 +214,7 @@ Duration:     1234ms
 Add to your CI pipeline:
 
 ```yaml
+# Full tests with MongoDB
 test:
   runs-on: ubuntu-latest
   services:
@@ -193,7 +226,16 @@ test:
     - uses: actions/checkout@v3
     - uses: denoland/setup-deno@v1
     - name: Run Tests
-      run: deno test --allow-all test/test_harness.ts
+      run: ./test/run_tests.sh --mongo-uri "mongodb://localhost:27017/test_my_database"
+
+# SQLite-only tests (no MongoDB required)
+test-sqlite:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v3
+    - uses: denoland/setup-deno@v1
+    - name: Run SQLite Tests
+      run: ./test/run_tests.sh --sqlite-only
 ```
 
 

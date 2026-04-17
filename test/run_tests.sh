@@ -64,6 +64,7 @@ check_mongodb() {
 
 # Parse arguments
 MONGO_ONLY=false
+SQLITE_ONLY=false
 FILTER=""
 MONGO_URI=""
 
@@ -71,6 +72,10 @@ while [[ $# -gt 0 ]]; do
   case $1 in
   --only-mongo)
     MONGO_ONLY=true
+    shift
+    ;;
+  --sqlite-only)
+    SQLITE_ONLY=true
     shift
     ;;
   --filter)
@@ -90,6 +95,7 @@ while [[ $# -gt 0 ]]; do
     echo ""
     echo "Options:"
     echo "  --mongo-uri <uri>   MongoDB connection string (required for MongoDB tests)"
+    echo "  --sqlite-only       Run only SQLite tests (skip MongoDB connectivity tests)"
     echo "  --only-mongo        Run only MongoDB-related tests"
     echo "  --filter <name>     Filter tests by name"
     echo "  -h, --help          Show this help message"
@@ -100,7 +106,7 @@ while [[ $# -gt 0 ]]; do
     ;;
   *)
     echo "Unknown option: $1"
-    echo "Usage: $0 [--mongo-uri <uri>] [--only-mongo] [--filter \"test-name\"]"
+    echo "Usage: $0 [--mongo-uri <uri>] [--sqlite-only] [--filter \"test-name\"]"
     echo "Run '$0 --help' for more information."
     exit 1
     ;;
@@ -108,7 +114,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check MongoDB if not skipping
-if [ "$MONGO_ONLY" = false ]; then
+if [ "$MONGO_ONLY" = false ] && [ "$SQLITE_ONLY" = false ]; then
   check_mongodb
 fi
 
@@ -125,7 +131,9 @@ fi
 
 # Run tests
 if [ -n "$FILTER" ]; then
-  MONGO_TEST_URI="$MONGO_URI" deno test --allow-all $FILTER test/test_harness.ts
+  SKIP_MONGO_TESTS="$SQLITE_ONLY" MONGO_TEST_URI="$MONGO_URI" deno test --allow-all $FILTER test/test_harness.ts
+elif [ "$SQLITE_ONLY" = true ]; then
+  SKIP_MONGO_TESTS="true" MONGO_TEST_URI="$MONGO_URI" deno test --allow-all test/test_harness.ts
 else
   MONGO_TEST_URI="$MONGO_URI" deno test --allow-all test/test_harness.ts
 fi

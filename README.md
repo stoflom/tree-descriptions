@@ -97,6 +97,9 @@ Run tests with:
 # Run all tests (requires MongoDB)
 ./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database"
 
+# Run SQLite-only tests (no MongoDB required)
+./test/run_tests.sh --sqlite-only
+
 # Run specific test filter
 ./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database" --filter "MIGRATION"
 
@@ -109,3 +112,11 @@ deno task coverage:report
 # Or generate HTML report
 deno coverage --html coverage/html coverage/
 ```
+
+### Script Validation Tests
+
+The `[SCRIPT]` test suite runs the actual `update_descriptions.ts` script to verify correctness before running on production data. These tests:
+- Execute the script in a subprocess with test environment variables
+- Verify script output and exit codes
+- Check that SQLite/MongoDB state changes are correct
+- Validate idempotency (running twice produces same result)
