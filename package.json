@@ -1,8 +1,0 @@
-{
-  "name": "treedescription",
-  "scripts": {
-    "start": "deno run --allow-all --node-modules-dir=auto update_descriptions.ts",
-    "dev": "deno run --allow-all --node-modules-dir=auto --watch update_descriptions.ts"
-  },
-  "type": "module"
-}
