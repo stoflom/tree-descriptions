@@ -23,14 +23,10 @@ Or edit the constants in `update_descriptions.ts`.
 
 ```bash
 # Development (watch for changes)
-deno run --allow-all --node-modules-dir=auto --watch update_descriptions.ts
+deno task dev
 
 # Production (run once)
-deno run --allow-all --node-modules-dir=auto update_descriptions.ts
-
-# Using npm scripts (if you have package.json)
-npm run start
-npm run dev
+deno task start
 ```
 
 ## How it works
@@ -52,8 +48,9 @@ The migration reports:
 
 ## Dependencies
 
-- SQLite3: Used for the local database (via `deno.land/x/sqlite3`)
-- MongoDB: Used for the remote database (via `npm:mongodb`)
+- Deno: JavaScript/TypeScript runtime
+- SQLite3: Local database (via `deno.land/x/sqlite3`)
+- MongoDB: Remote database (via `npm:mongodb`)
 
 ## Testing
 
@@ -61,3 +58,10 @@ Test scripts available:
 - `test_deno_sqlite.ts` - Tests SQLite functionality
 - `test_mongo.ts` - Tests MongoDB connection
 - `populate_mongo.ts` - Populates MongoDB with test data
+
+Run tests with:
+```bash
+deno run test_deno_sqlite.ts
+deno run test_mongo.ts
+deno run populate_mongo.ts
+```
