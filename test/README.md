@@ -58,7 +58,9 @@ MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" deno test --allow-
 
 ```bash
 deno test --allow-all --coverage=coverage test/test_harness.ts
-deno coverage --uncovered coverage/coverage --lcov > coverage/lcov.info
+deno task coverage:report
+# Or generate HTML report
+deno coverage --html coverage/html coverage/
 ```
 
 ### Run Specific Test Suite
@@ -194,6 +196,4 @@ test:
       run: deno test --allow-all test/test_harness.ts
 ```
 
-## License
 
-MIT

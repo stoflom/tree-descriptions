@@ -97,12 +97,6 @@ Run tests with:
 # Run all tests (requires MongoDB)
 ./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database"
 
-# Run tests using environment variable
-MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" ./test/run_tests.sh
-
-# Run only SQLite tests (skip MongoDB connectivity check)
-./test/run_tests.sh --only-mongo
-
 # Run specific test filter
 ./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database" --filter "MIGRATION"
 
@@ -112,4 +106,6 @@ MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" ./test/run_tests.s
 # Run with coverage (using Deno directly)
 deno task test:coverage
 deno task coverage:report
+# Or generate HTML report
+deno coverage --html coverage/html coverage/
 ```
