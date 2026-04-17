@@ -52,6 +52,10 @@ The migration reports:
 - SQLite3: Local database (via `deno.land/x/sqlite3`)
 - MongoDB: Remote database (via `npm:mongodb`)
 
+## Database Schema
+
+The SQLite database schema is defined in `trees.ddl`. This file contains all table definitions and should be used to initialize the SQLite database before running migrations.
+
 ## Testing
 
 Test scripts available:
