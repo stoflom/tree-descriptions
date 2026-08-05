@@ -21,10 +21,10 @@ docker run -d -p 27017:27017 --name test-mongo mongo:latest
 ### Environment Variables (Optional)
 
 ```bash
-export MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database"
+export MONGO_TEST_URI="mongodb://localhost:27017/test_my_database"
 ```
 
-Default: `mongodb://192.168.0.8:27017/test_my_database` (when using `--mongo-uri` flag or `MONGO_TEST_URI` env var)
+Default: `mongodb://localhost:27017/test_my_database` (when using `--mongo-uri` flag or `MONGO_TEST_URI` env var)
 
 ## Running Tests
 
@@ -34,7 +34,7 @@ The easiest way to run tests is using the provided shell script:
 
 ```bash
 # Run all tests with a specific MongoDB URI
-./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database"
+./test/run_tests.sh --mongo-uri "mongodb://localhost:27017/test_my_database"
 
 # Run tests with default MongoDB URI (from MONGO_TEST_URI env var)
 ./test/run_tests.sh
@@ -43,7 +43,7 @@ The easiest way to run tests is using the provided shell script:
 ./test/run_tests.sh --sqlite-only
 
 # Run specific test filter
-./test/run_tests.sh --mongo-uri "mongodb://192.168.0.8:27017/test_my_database" --filter "MIGRATION"
+./test/run_tests.sh --mongo-uri "mongodb://localhost:27017/test_my_database" --filter "MIGRATION"
 
 # Show help
 ./test/run_tests.sh --help
@@ -53,7 +53,7 @@ The easiest way to run tests is using the provided shell script:
 
 ```bash
 # Run all tests (set MONGO_TEST_URI environment variable)
-MONGO_TEST_URI="mongodb://192.168.0.8:27017/test_my_database" deno test --allow-all test/test_harness.ts
+MONGO_TEST_URI="mongodb://localhost:27017/test_my_database" deno test --allow-all test/test_harness.ts
 
 # Run SQLite-only tests
 SKIP_MONGO_TESTS="true" deno test --allow-all test/test_harness.ts

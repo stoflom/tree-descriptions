@@ -13,7 +13,7 @@ Environment variables (with defaults for development):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SQLITE_PATH` | `./trees.db` | Path to SQLite database |
-| `MONGO_URI` | `mongodb://192.168.0.8:27017/` | MongoDB connection URI |
+| `MONGO_URI` | `mongodb://localhost:27017/` | MongoDB connection URI |
 | `DB_NAME` | `my_database` | MongoDB database name |
 | `COLLECTION_NAME` | `treecols` | MongoDB collection name |
 
